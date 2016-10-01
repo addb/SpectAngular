@@ -1,23 +1,41 @@
 package com.addb.spectangular;
 
 import android.annotation.SuppressLint;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.Log;
+import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.Toast;
 
 /**
  * An example full-screen activity that shows and hides the system UI (i.e.
  * status bar and navigation/system bar) with user interaction.
  */
-public class FullscreenActivity extends AppCompatActivity {
+public class FullscreenActivity extends AppCompatActivity implements SensorEventListener {
     /**
      * Whether or not the system UI should be auto-hidden after
      * {@link #AUTO_HIDE_DELAY_MILLIS} milliseconds.
      */
+    private SensorManager mSensorManager;
+    Sensor accelerometer;
+    Sensor magnetometer;
     private static final boolean AUTO_HIDE = true;
+    float[] mGravity = new float[3];
+    float[] mGeomagnetic = new float[3];
+    private float[] m_orientation = new float[4];
+
+    public float Pitch = 0.f;
+    public float Heading = 0.f;
+    public float Roll = 0.f;
+
 
     /**
      * If {@link #AUTO_HIDE} is set, the number of milliseconds to wait after
@@ -92,6 +110,12 @@ public class FullscreenActivity extends AppCompatActivity {
         mVisible = true;
         mControlsView = findViewById(R.id.fullscreen_content_controls);
         mContentView = findViewById(R.id.fullscreen_content);
+        System.out.println("here 2");
+
+        mSensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
+        accelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        magnetometer = mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+        initListeners();
 
 
         // Set up the user interaction to manually show or hide the system UI.
@@ -106,6 +130,12 @@ public class FullscreenActivity extends AppCompatActivity {
         // operations to prevent the jarring behavior of controls going away
         // while interacting with the UI.
         findViewById(R.id.dummy_button).setOnTouchListener(mDelayHideTouchListener);
+    }
+    public void initListeners()
+    {
+        Log.d("test", "initListeners: in init");
+        mSensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_FASTEST);
+        mSensorManager.registerListener(this, magnetometer, SensorManager.SENSOR_DELAY_FASTEST);
     }
 
     @Override
@@ -159,5 +189,46 @@ public class FullscreenActivity extends AppCompatActivity {
     private void delayedHide(int delayMillis) {
         mHideHandler.removeCallbacks(mHideRunnable);
         mHideHandler.postDelayed(mHideRunnable, delayMillis);
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        Log.d("test", "initListeners: sensor");
+        Toast t = Toast.makeText(this, "onSensorChanged", Toast.LENGTH_LONG);
+        t.setGravity(Gravity.TOP, 0, 0);
+        t.show();
+        if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER){
+            mGravity = event.values;
+        }
+        if(event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD){
+            mGeomagnetic = event.values;
+        }
+
+        if(mGravity !=null && mGeomagnetic !=null){
+            float [] R = new float[9];
+            float [] I = new float [9];
+            boolean success = SensorManager.getRotationMatrix(R, I, mGravity, mGeomagnetic);
+            if(success){
+                float [] orientation = new float [3];
+                SensorManager.getOrientation(R, orientation);
+                Log.d("op", "onSensorChanged: "+orientation[0]);
+            }
+        }
+    }
+
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int i) {
+        Log.d("test", "initListeners: in accuracy");
+    }
+
+    protected void onResume() {
+        super.onResume();
+        initListeners();
+    }
+    protected void onPause() {
+        super.onPause();
+        mSensorManager.unregisterListener(this);
+
     }
 }
